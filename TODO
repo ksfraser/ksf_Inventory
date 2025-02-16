@@ -1,0 +1,4 @@
+*Make the Configuration option HOLDING TANK a drop down of existing locations
+*Add link to go add inventory locations (use existing code - just link)
+*Add default STORE location.
+*Test the Import Text File routine.

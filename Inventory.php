@@ -29,7 +29,8 @@ $prefsDB = "Inventory_prefs";
 $server = "fhsws001.ksfraser.com";	//devel
 $user = $pass = $dbname = "fhs";
 
-$Inventoryc = new Inventory( "fhs-laptop1.ksfraser.com", "fhs", "fhs", "fhs", $prefsDB );
+//$Inventoryc = new Inventory( "fhs-laptop1.ksfraser.com", "fhs", "fhs", "fhs", $prefsDB );
+$Inventoryc = new Inventory( $server, "fhs", "fhs", "fhs", $prefsDB );
 //$Inventoryc = new Inventory_ui( $server, $user, $pass, $dbname, $prefsDB );
 $found = $Inventoryc->is_installed();
 $Inventoryc->set_var( 'found', $found );

@@ -342,6 +342,12 @@ class Inventory extends generic_fa_interface
 	{
 		return;
 	}
+	/**//************************************************************************
+	* Copy from _SESSION to ->line_items
+	*
+	* @param none
+	* @return none
+	****************************************************************************/
 	function copy_from_session()
 	{
 		$this->copytocount++;
@@ -378,16 +384,25 @@ class Inventory extends generic_fa_interface
 			//Also no point having something without the stock_id
 			if( $line['counted'] >= 0 AND isset( $line['stock_id'] ) )
 			{
-				$this->barcode = $this->get_master_sku( $line['stock_id'] );	
-				//$this->barcode = $line['stock_id'];	//so find_cart_item can find it...
+				//$this->barcode = $this->get_master_sku( $line['stock_id'] );	
+				$this->stock_id = $this->barcode = $line['stock_id'];	//so find_cart_item can find it...
 				$lineno = $this->find_cart_item();
 				if( $lineno >= 0 )
 				{
 					//consolidate all of the same line items onto 1
 					$count = $lineno;
-					$this->line_items[$lineno]['counted'] += $line['counted'];
-					$this->line_items[$lineno]['qoh'] += $line['qoh'];
-					$this->line_items[$lineno]['quantity'] += $line['quantity'];
+					if( isset( $line['counted'] ) )
+					{
+						$this->append_or_create_line_item( $lineno, "counted", $line['counted'] );
+					}
+					if( isset( $line['qoh'] ) )
+					{
+						$this->append_or_create_line_item( $lineno, "qoh", $line['qoh'] );
+					}
+					if( isset( $line['quantity'] ) )
+					{
+						$this->append_or_create_line_item( $lineno, "quantity", $line['quantity'] );
+					}
 					//$this->line_items[$count]['item_description'] = $line['item_description'];
 				}
 				else
@@ -411,6 +426,33 @@ class Inventory extends generic_fa_interface
 		}
 		//display_notification( "exiting Copy_from_session" );
 	}
+	/**//*************************************************************
+	* If line_items[$lineno][$field] exists, append else create
+	*
+	* @param int lineno
+	* @param string field
+	* @param string value
+	* @param bool should we append (true) or replace (false)
+	* @return none
+	******************************************************************/
+	function append_or_create_line_item( $lineno, $field, $value, $append = false )
+	{
+		if( ! isset( $this->line_items[$lineno][$field] ) )
+		{
+			$this->line_items[$lineno][$field] = $value;
+		}
+		else
+		{
+			if( $append )
+			{
+				$this->line_items[$lineno][$field] += $value;
+			}
+			else
+			{
+				$this->line_items[$lineno][$field] = $value;
+			}
+		}
+	}
 	function copy_to_session()
 	{
 		$this->copyfromcount++;
@@ -425,17 +467,15 @@ class Inventory extends generic_fa_interface
 			if( $line_item['counted'] >= 0 )
 			{
 				//no point having a count on a NULL stock_id
-				if( isset( $line_item['stock_id'] ) )
+				if( isset( $line_item['stock_id'] ) AND strlen( $line_item['stock_id'] ) > 0 )
 				{
 					$stock_id = $this->get_master_sku( $line_item['stock_id'] );
+					foreach( $line_item as $key => $value )
+					{
+						$l2[$count][$key] = $value;
+					}
 					$l2[$count]['stock_id'] = $stock_id;
-					$l2[$count]['counted'] = $line_item['counted'];
-					if( isset( $line_item['qoh'] ) )
-						$l2[$count]['qoh'] = $line_item['qoh'];
-					if( isset( $line_item['quantity'] ) )
-						$l2[$count]['quantity'] = $line_item['quantity'];
-					if( isset( $line_item['item_description'] ) )
-						$l2[$count]['item_description'] = $line_item['item_description'];
+					//display_notification( __FILE__ . "::" . __LINE__  . "::" . __METHOD__ . print_r( $l2[$count], true ) );
 					$count++;
 					//display_notification( "Copy2 count2: " . $count );
 				}
@@ -556,7 +596,7 @@ class Inventory extends generic_fa_interface
 	{
 	    	//$this->cart->remove_from_cart($line_no);
 		//$lineno = $this->find_cart_item();
-		display_notification( __LINE__ . ' handle_delete removing ' . $line_no . " item " . $this->line_items[$line_no]['stock_id'] );
+		//display_notification( __LINE__ . ' handle_delete removing ' . $line_no . " item " . $this->line_items[$line_no]['stock_id'] );
 
 		//$this->line_items[$line_no]['stock_id'] = "";
 		$this->line_items[$line_no]['counted'] = -1;	//copy_to_session or _from_ should now discard this line
@@ -571,30 +611,76 @@ class Inventory extends generic_fa_interface
 	        $this->page_modified();
 	  	$this->line_start_focus();
 	}
-	function isStockid( $stock_id )
+	/**//*************************************************************
+	* Is the submitted code a stock_id
+	*
+	* @param string barcode
+	* @param bool set ->stock_id
+	* @param bool is it a stock_id
+	******************************************************************/
+	function isStockid( $stock_id, $set = false )
 	{
 		//echo __LINE__ . " DEBUG: isStockid<br />";
-		include_once( $this->path_to_root . "/includes/db/inventory_db.inc" );
-		return is_inventory_item( $stock_id );
+
+		//include_once( $this->path_to_root . "/includes/db/inventory_db.inc" );
+		//return is_inventory_item( $stock_id );
+			//Depending on the DB and Table collation, the search here could be case insensitive OR case sensitive.
+			//As of 20250215 the fields are _ci
+		$sql = "SELECT stock_id FROM " .TB_PREF."stock_master WHERE stock_id=".db_escape($stock_id)." AND mb_flag <> 'D'";
+        	$result = db_query($sql, "Cannot query is inventory item or not");
+		$fet = db_fetch_assoc( $result );
+		if( count( $fet ) > 0  )
+		{
+			if( strlen( $fet['stock_id'] ) > 0 )
+			{
+				//display_notification( __FILE__ . "::" . __LINE__ . "::" . __METHOD__ . "::" . print_r( $fet, true ) );
+				if( $set )
+				{
+					$this->set_var( "stock_id", $fet['stock_id'] );
+				}
+				//Is a stock_id
+				return true;
+			}
+		}
+		else
+		{
+			//display_notification( __FILE__ . "::" . __LINE__ . "::" . print_r( $fet, true ) );
+			return false;
+		}
+
 	}
-	/*@array@*/ function isItemCode( $item_code )
+	/**//*************************************************************************
+	* Determine if the barcode is a foreign code and if so for what stock_id
+	*
+	* @param string barcode
+	* @param bool should we set ->stock_id
+	* @return bool
+	******************************************************************************/
+	function isItemCode( $item_code, $set = false )
 	{
-		//echo __LINE__ . " DEBUG: isItemCode<br />";
 	//Is the code in the Item_code table AND is NOT the native master code
-        	$sql = "SELECT stock_id FROM "
         	        //. $this->tb_pref ."item_codes "
-        	        . TB_PREF ."item_codes "
-        	        . " WHERE item_code=".db_escape($item_code)."
-        	                AND stock_id!=".db_escape($item_code);
+        	$sql = "SELECT stock_id FROM " . TB_PREF ."item_codes " . " WHERE item_code=".db_escape($item_code)." AND stock_id!=".db_escape($item_code);
         	$res = db_query($sql, "where used query failed");
 		$fet = db_fetch_assoc( $res );
 		if( count( $fet ) > 0  )
 		{
-			//echo __FILE__ . ":" . __LINE__ . " DEBUG: isItemCode count > 0<br />";
-		//should we set the data into a set of variables?
-			return TRUE;
+			if( strlen( $fet['stock_id'] ) > 0 )
+			{
+				//display_notification( __FILE__ . "::" . __LINE__ . "::" . __METHOD__ . "::" . print_r( $fet, true ) );
+				if( $set )
+				{
+					$this->set_var( "stock_id", $fet['stock_id'] );
+				}
+				//Is a stock_id
+				return true;
+			}
 		}
-		return FALSE;
+		else
+		{
+			//display_notification( __FILE__ . "::" . __LINE__ . "::" . print_r( $fet, true ) );
+			return false;
+		}
 	}
 	function inItemCode( $item_code )
 	{
@@ -636,77 +722,154 @@ class Inventory extends generic_fa_interface
 */
 		return $ret;
 	}
+	/**//***********************************************************
+	* Get the stock_id of the barcode
+	*
+	* @param string barcode
+	* @return string stock_id
+	***************************************************************/
 	function get_master_sku( $barcode )
 	{
+		if( strlen( $barcode ) > 0 )
+		{
 			//NEED to check foreign_codes to see if it is the item, or a SKU?
-			if( $this->isStockid( $barcode ) )
+			if( $this->isStockid( $barcode, true ) )
 			{
-				$stock_id = $barcode;
+				if( ! isset( $this->stock_id ) )
+				{
+					$this->stock_id = $barcode;
+				}
+				//display_notification( __FILE__ . "::" . __LINE__ . "::" . "Barcode $barcode is Stock ID $this->stock_id" );
 			}
 			else
 			{
-				$ItemCodeArr = $this->isItemCode( $barcode );
-				if( $ItemCodeArr != FALSE )
+				if( ! $this->isItemCode( $barcode, true ) )
 				{
-					//convert to master sku (stock_id)
-					if( $this->isStockid( $ItemCodeArr['stock_id'] ) )
-						$stock_id = $ItemCodeArr['stock_id'];
-					else
-					{
-						display_error( "Major FUBAR: " . $barcode . "::" . $ItemCodeArr['stock_id'] );
-						$stock_id = "";
-					}
+						display_notification( __FILE__ . "::" . __LINE__ . "::" . $barcode . " is not in our system as a product stock_id nor as a foreign code" );
+						$this->stock_id = "";
 				}
 				else
 				{
-					$stock_id = "";
-					//we don't have the item YET.
-					display_error( "Barcode not in the system: " . $barcode );
 				}
 			}
-			return $stock_id;
-	}
-	function add_item()
-	{
-		$line = $this->find_cart_item();
-		if( $line >= 0 )
+			return $this->stock_id;
+		}	
+		else
 		{
-			//echo __LINE__ . " DEBUG: Barcode " . $this->barcode . " has spot " . $line . " and counted " . $this->line_items[$line]['counted'] . "<br />";
-			//display_notification( __LINE__ . " " . $this->barcode . ' found on line ' . $line );
-			//display_notification( __LINE__ . " " . $this->line_items[$line]['stock_id'] . " Current quantity " .$this->line_items[$line]['counted'] . ' and adding ' . $this->add_quantity );
-			$this->line_items[$line]['counted'] = $this->line_items[$line]['counted'] + $this->add_quantity;
-			//display_notification( __LINE__ . " " . $this->line_items[$line]['stock_id'] . " New total: " .$this->line_items[$line]['counted'] );
-			//$this->update_item( $line );
+			throw new Exception( "barcode was empty" );
+			return "";
+		}
+	}
+	/**//************************************************************************
+	* Add new item into ->line_items
+	*
+	*	Requires that ->stock_id is set.
+	*
+	* @since 20250215
+	* @param none add internal vars to line_item
+	* @return none
+	****************************************************************************/
+	function add_line_item()
+	{
+		if( ! isset( $this->stock_id ) )
+		{
+			throw new Exception( __FILE__ . "::" . __LINE__ . "::" . "We shouldn't have made it this far without stock_id set" );
 		}
 		else
 		{
-			//display_notification( __LINE__ . ' new ' . $this->barcode );
-			//display_notification( __LINE__ . " " .var_dump( $_POST ) );
 			$newcount = count($this->line_items);
-			$this->stock_id = $this->get_master_sku( $this->barcode );
+			$this->line_items[$newcount]['stock_id'] = $this->stock_id;
+		}
+		if( isset( $this->add_quantity ) )
+		{
+			$this->line_items[$newcount]['counted'] = $this->add_quantity;
+		}
+		if( isset( $this->item_text ) )
+			$this->line_items[$newcount]['item_description'] = $this->item_text;
+		else
+			$this->line_items[$newcount]['item_description'] = $this->get_item_description();
+
+	}
+	/**//***********************************************************************
+	* Add a scanned UPC into the cart OR update count
+	*
+	*	called fcn find_cart_item assumes ->barcode has been set
+	*
+	* @param none uses internal vars
+	* @return none sets internal vars
+	****************************************************************************/
+	function add_item()
+	{
+			//find_cart_item assumes ->barcode has been set
+		$line = $this->find_cart_item();
+		if( $line < 0 )
+		{
+			//We didn't find ->barcode in the cart.  Look for it's stock_id
+			$this->get_master_sku( $this->barcode, true );
+			$line = $this->find_cart_item( $this->stock_id );
+		}
+		if( $line >= 0 )
+		{
+			//The Stock_id IS in the cart.
+			$this->line_items[$line]['counted'] = $this->line_items[$line]['counted'] + $this->add_quantity;
+		}
+		else
+		{
+			//The stock_id ISN'T in the cart.
+			$newcount = count($this->line_items);
+			display_notification( __FILE__ . "::" . __LINE__ . ":: Adding new scanned UPC $this->barcode / $this->stock_id to cart @" . $newcount . " + 1 !" ); 
+			$this->add_line_item();
+/*
 			$this->line_items[$newcount]['stock_id'] = $this->stock_id;
 			$this->line_items[$newcount]['counted'] = $this->add_quantity;
 			if( isset( $this->item_text ) )
 				$this->line_items[$newcount]['item_description'] = $this->item_text;
 			else
 				$this->line_items[$newcount]['item_description'] = $this->get_item_description();
-			//display_notification( __LINE__ . ' text ' . $this->line_items[$newcount]['item_description'] );
-			//$this->copy_to_session();
+*/
 		}
 		$this->copy_to_session();
 	        //$this->page_modified();
 		global $Ajax;
 		$Ajax->activate('items_table');
 	}
-	function find_cart_item()
+	/**//****************************************************************
+	* Find the line number in the cart which matches the submitted UPC
+	*
+	* Assumes ->barcode is set.  If it isn't checks for _POST['stock_id']
+	*
+	* @param string stock_id to search for else ->barcode
+	* @returns int || -1
+	*******************************************************************/
+	function find_cart_item( $search_id = null)
 	{
 		//echo __LINE__ . " DEBUG: find_cart_item: Barcode " . $this->barcode . "<br />";
 		$count = 0;
 		$itemcount = count( $this->line_items );
 		//echo __LINE__ . " DEBUG: find_cart_item: itemcount in cart: " . $itemcount . "<br />";
 		//display_notification( "511: " . var_dump( $_POST ) );
+
+		if( null == $search_id )
+		{
+			if( ! isset(  $this->barcode ) )
+			{
+				if( isset( $_POST['stock_id'] ) )
+				{
+					$this->set( "barcode", $_POST['stock_id'] );
+				}
+				else
+				{
+					throw new Exception( "Neither ->barcode nor _POST stock_id set!" );
+					return -1;
+				}
+			}
+			$search_id = $this->barcode;
+		}
+
 		for( $count; $count < $itemcount; $count++ )
 		{
+			//How are we getting here without setting ->barcode?
+/*** 20250215 refactor
 			if( isset( $_POST['stock_id'] ) )
 			{
 				if( $this->line_items[$count]['stock_id'] == $_POST['stock_id'] )
@@ -717,11 +880,14 @@ class Inventory extends generic_fa_interface
 			else
 			if( isset( $this->barcode ) )
 			{
-				if( $this->line_items[$count]['stock_id'] == $this->barcode )
+***/
+				if( $this->line_items[$count]['stock_id'] == $search_id )
 				{
 					return $count;
 				}
+/***  20250215 refactor
 			}
+***/
 			//display_notification( __LINE__ . " count: " . $count . "::stock_id: " . $this->line_items[$count]['stock_id'] . "::barcode: " . $this->barcode . ":<br />" );
 			//echo __LINE__ .  " DEBUG: count: " . $count . "::stock_id: " . $this->line_items[$count]['stock_id'] . "::barcode: " . $this->barcode . ":<br />";
 		}
@@ -875,9 +1041,6 @@ class Inventory extends generic_fa_interface
 		text_row( "UPC", "UPC", "UPC", 20, 40);
 		hidden( 'action', 'scan_form' );
 		submit_center( "scan_form", "Submit UPC" );
-		//submit_center( "SubmitUPC", "Submit UPC" );
-	               //button_cell('Submit', _("Submit"), _('Submit'), ICON_UPDATE);
-		       //var_dump( $_SESSION );
                 table_section(1);
 		end_table();
 	}
@@ -922,6 +1085,7 @@ class Inventory extends generic_fa_interface
 			//UPC set so we need to do something with it.
 		        $this->set_var( "barcode", $_POST['UPC'] );
 		        $this->set_var( "add_quantity", 1 );
+		//Is the barcode a stock_id, or is it a foriegn code?
 	
 			$this->add_item();
 			$this->upc_table();
@@ -953,7 +1117,7 @@ class Inventory extends generic_fa_interface
 		                //case 4 partial
 		                //case 5 partial
 		                $this->set_var( "barcode",  $_POST['UPC'] );
-		                echo "DEBUG: Setting Barcode 2<br />";
+		                echo __FILE__ . "::" . __LINE__ . "::" . " DEBUG: Setting Barcode 2<br />";
 		        }
 		}
                 end_table();
@@ -1086,12 +1250,16 @@ class Inventory extends generic_fa_interface
 	//Assumption/requirement the passed in variable is a 1D array of SKUs.
 	function csv2cart( $lines_arr )
 	{
-		display_notification( __LINE__ );
+		//display_notification( __LINE__ );
 		$this->create_cart();
 		$this->add_quantity = 1;
+		//display_notification( __FILE__ . "::" . __LINE__ . "::" . print_r( $lines_arr, true ) );
 		foreach( $lines_arr as $line )
 		{
+			//display_notification( __FILE__ . "::" . __LINE__ . "::" . print_r( $line, true ) );
+			//echo( __FILE__ . "::" . __LINE__ . "::" . print_r( $line, true ) );
 			$this->barcode = $line[0];
+			$this->add_quantity = 1;
 			$this->add_item();
 		}
 	       // $this->page_modified();
@@ -1099,7 +1267,7 @@ class Inventory extends generic_fa_interface
 	}
 	function Import_text_file()
 	{
-		display_notification( __LINE__ );
+		//display_notification( __LINE__ );
 		$this->title = "Import Text File of counts";
   		$_SESSION['page_title'] = _($help_context = $this->title);
 		//$_SESSION['page_title'] = _($help_context = "Inventory Stock Taking");
@@ -1120,7 +1288,7 @@ class Inventory extends generic_fa_interface
 	}
 	function import_csv()
 	{
-		display_notification( __LINE__ );
+		//display_notification( __LINE__ );
 		//We should have a file upload to move and process.
 		require_once( '../ksf_modules_common/class.ksf_file.php' );
 		$ksf_ui_class = new ksf_ui_class();
@@ -1193,7 +1361,7 @@ class Inventory extends generic_fa_interface
 	}
 	function init_tables_form()
 	{
-            	display_notification("init tables form");
+            	//display_notification("init tables form");
 		$this->call_table( 'init_tables_completed_form', "Init Tables" );
 	}
 
