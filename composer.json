@@ -1,0 +1,14 @@
+{
+    "name": "ksfraser/ksf_Inventory",
+    "description": "Inventory - Serial/batch tracking, warehouse locations, shelf/bin",
+    "type": "library",
+    "license": "GPL-3.0",
+    "require": {
+        "php": ">=8.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Ksfraser\\Inventory\\": "src/Ksfraser/Inventory/"
+        }
+    }
+}
