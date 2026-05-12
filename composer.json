@@ -1,14 +1,20 @@
 {
-    "name": "ksfraser/ksf_Inventory",
-    "description": "Inventory - Serial/batch tracking, warehouse locations, shelf/bin",
+    "name": "ksfraser/ksf-inventory",
+    "description": "Inventory module for KSF",
     "type": "library",
-    "license": "GPL-3.0",
-    "require": {
-        "php": ">=8.0"
+    "require-dev": {
+        "phpunit/phpunit": "^10.0"
     },
     "autoload": {
+        "classmap": [
+            "src/Ksfraser/Inventory/",
+            "src/Ksfraser/Vendor/",
+            "src/Ksfraser/Reporting/"
+        ]
+    },
+    "autoload-dev": {
         "psr-4": {
-            "Ksfraser\\Inventory\\": "src/Ksfraser/Inventory/"
+            "Ksfraser\\Tests\\": "tests/"
         }
     }
 }
