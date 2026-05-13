@@ -3,7 +3,7 @@
         'name' => 'ksfraser/ksf-inventory',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => 'ffe183deb7a0849f2686ae37d1d7d3d9f7e648a3',
+        'reference' => 'c7faf2fea96f0a7c2cdffea7083edfafb8221643',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'ksfraser/ksf-inventory' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => 'ffe183deb7a0849f2686ae37d1d7d3d9f7e648a3',
+            'reference' => 'c7faf2fea96f0a7c2cdffea7083edfafb8221643',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
