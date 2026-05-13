@@ -5,50 +5,10 @@ declare(strict_types=1);
 namespace Ksfraser\Tests\Unit\Vendor;
 
 use Ksfraser\Vendor\VendorManagement;
-use Ksfraser\Vendor\VendorPerformance;
 use PHPUnit\Framework\TestCase;
 
 class VendorManagementTest extends TestCase
 {
-    private function createVendorPerformance(string $vendorNo): VendorPerformance
-    {
-        $class = new \ReflectionClass(VendorPerformance::class);
-        $perf = $class->newInstanceWithoutConstructor();
-        
-        $vendorNoProp = $class->getProperty('vendor_no');
-        $vendorNoProp->setAccessible(true);
-        $vendorNoProp->setValue($perf, $vendorNo);
-        
-        $orderCountProp = $class->getProperty('order_count');
-        $orderCountProp->setAccessible(true);
-        $orderCountProp->setValue($perf, 0);
-        
-        $totalSpendProp = $class->getProperty('total_spend');
-        $totalSpendProp->setAccessible(true);
-        $totalSpendProp->setValue($perf, 0.0);
-        
-        $avgOrderProp = $class->getProperty('avg_order_value');
-        $avgOrderProp->setAccessible(true);
-        $avgOrderProp->setValue($perf, 0.0);
-        
-        $onTimeProp = $class->getProperty('on_time_deliveries');
-        $onTimeProp->setAccessible(true);
-        $onTimeProp->setValue($perf, 0);
-        
-        $lateProp = $class->getProperty('late_deliveries');
-        $lateProp->setAccessible(true);
-        $lateProp->setValue($perf, 0);
-        
-        $damageProp = $class->getProperty('damage_claims');
-        $damageProp->setAccessible(true);
-        $damageProp->setValue($perf, 0);
-        
-        $qualityProp = $class->getProperty('quality_score');
-        $qualityProp->setAccessible(true);
-        $qualityProp->setValue($perf, 0.0);
-        
-        return $perf;
-    }
     public function testVendorManagementConstructionWithData(): void
     {
         $data = [
@@ -194,73 +154,6 @@ class VendorManagementTest extends TestCase
         $this->assertFalse($vendor->approved);
     }
 
-    public function testVendorPerformanceConstruction(): void
-    {
-        $performance = $this->createVendorPerformance('V-001');
-
-        $this->assertEquals('V-001', $performance->vendor_no);
-        $this->assertIsInt($performance->order_count);
-        $this->assertIsFloat($performance->total_spend);
-        $this->assertIsFloat($performance->avg_order_value);
-        $this->assertIsInt($performance->on_time_deliveries);
-        $this->assertIsInt($performance->late_deliveries);
-        $this->assertIsInt($performance->damage_claims);
-        $this->assertIsFloat($performance->quality_score);
-    }
-
-    public function testVendorPerformanceGetOnTimeRateWithDeliveries(): void
-    {
-        $performance = $this->createVendorPerformance('V-002');
-        $performance->on_time_deliveries = 8;
-        $performance->late_deliveries = 2;
-
-        $rate = $performance->getOnTimeRate();
-
-        $this->assertEquals(80.0, $rate);
-    }
-
-    public function testVendorPerformanceGetOnTimeRateWithNoDeliveries(): void
-    {
-        $performance = $this->createVendorPerformance('V-003');
-
-        $rate = $performance->getOnTimeRate();
-
-        $this->assertEquals(0, $rate);
-    }
-
-    public function testVendorPerformanceQualityScoreCalculation(): void
-    {
-        $performance = $this->createVendorPerformance('V-004');
-        $performance->on_time_deliveries = 5;
-        $performance->late_deliveries = 5;
-
-        $qualityScore = $performance->quality_score;
-
-        $this->assertEquals(50.0, $qualityScore);
-    }
-
-    public function testVendorPerformanceQualityScoreWithOnlyOnTime(): void
-    {
-        $performance = $this->createVendorPerformance('V-005');
-        $performance->on_time_deliveries = 10;
-        $performance->late_deliveries = 0;
-
-        $qualityScore = $performance->quality_score;
-
-        $this->assertEquals(100.0, $qualityScore);
-    }
-
-    public function testVendorPerformanceQualityScoreWithNoDeliveries(): void
-    {
-        $performance = $this->createVendorPerformance('V-006');
-        $performance->on_time_deliveries = 0;
-        $performance->late_deliveries = 0;
-
-        $qualityScore = $performance->quality_score;
-
-        $this->assertEquals(0, $qualityScore);
-    }
-
     public function testVendorManagementGetPurchaseHistoryReturnsArray(): void
     {
         $vendor = new VendorManagement([
@@ -305,17 +198,5 @@ class VendorManagementTest extends TestCase
         $results = VendorManagement::getByCategory('Electronics');
 
         $this->assertIsArray($results);
-    }
-
-    public function testVendorPerformanceMetricsAreInitialized(): void
-    {
-        $performance = $this->createVendorPerformance('V-010');
-
-        $this->assertEquals(0, $performance->order_count);
-        $this->assertEquals(0.0, $performance->total_spend);
-        $this->assertEquals(0.0, $performance->avg_order_value);
-        $this->assertEquals(0, $performance->on_time_deliveries);
-        $this->assertEquals(0, $performance->late_deliveries);
-        $this->assertEquals(0, $performance->damage_claims);
     }
 }

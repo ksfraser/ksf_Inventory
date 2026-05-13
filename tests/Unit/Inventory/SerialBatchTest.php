@@ -6,6 +6,9 @@ namespace Ksfraser\Tests\Unit\Inventory;
 
 use DateTime;
 use Ksfraser\Inventory\SerialBatch;
+use Ksfraser\Inventory\SerialNumber;
+use Ksfraser\Inventory\BatchNumber;
+use Ksfraser\Inventory\WarehouseLocation;
 use PHPUnit\Framework\TestCase;
 
 class SerialBatchTest extends TestCase

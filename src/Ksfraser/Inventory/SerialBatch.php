@@ -26,21 +26,19 @@ class SerialNumber
 
     public function __construct(array $data = [])
     {
-        if (!empty($data)) {
-            $this->id = $data['id'] ?? 0;
-            $this->serial_no = $data['serial_no'];
-            $this->item_code = $data['item_code'];
-            $this->serialized_date = $data['serialized_date'] ?? date('Y-m-d');
-            $this->purchase_date = $data['purchase_date'] ?? null;
-            $this->supplier_ref = $data['supplier_ref'] ?? null;
-            $this->purchase_cost = $data['purchase_cost'] ?? null;
-            $this->location_code = $data['location_code'] ?? null;
-            $this->status = $data['status'] ?? self::STATUS_AVAILABLE;
-            $this->warranty_end_days = $data['warranty_end_days'] ?? null;
-            $this->notes = $data['notes'] ?? '';
-            $this->created_at = $data['created_at'] ?? date('Y-m-d H:i:s');
-            $this->updated_at = $data['updated_at'] ?? null;
-        }
+        $this->id = $data['id'] ?? 0;
+        $this->serial_no = $data['serial_no'] ?? '';
+        $this->item_code = $data['item_code'] ?? '';
+        $this->serialized_date = $data['serialized_date'] ?? date('Y-m-d');
+        $this->purchase_date = $data['purchase_date'] ?? null;
+        $this->supplier_ref = $data['supplier_ref'] ?? null;
+        $this->purchase_cost = $data['purchase_cost'] ?? null;
+        $this->location_code = $data['location_code'] ?? null;
+        $this->status = $data['status'] ?? self::STATUS_AVAILABLE;
+        $this->warranty_end_days = $data['warranty_end_days'] ?? null;
+        $this->notes = $data['notes'] ?? '';
+        $this->created_at = $data['created_at'] ?? date('Y-m-d H:i:s');
+        $this->updated_at = $data['updated_at'] ?? null;
     }
 
     public function assignToLocation(string $location_code): bool

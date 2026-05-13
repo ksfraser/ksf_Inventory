@@ -27,28 +27,26 @@ class VendorManagement
 
     public function __construct(array $data = [])
     {
-        if (!empty($data)) {
-            $this->id = $data['id'] ?? 0;
-            $this->vendor_no = $data['vendor_no'];
-            $this->name = $data['name'];
-            $this->contact = $data['contact'] ?? '';
-            $this->email = $data['email'] ?? '';
-            $this->phone = $data['phone'] ?? '';
-            $this->address = $data['address'] ?? '';
-            $this->city = $data['city'] ?? '';
-            $this->state = $data['state'] ?? '';
-            $this->postal_code = $data['postal_code'] ?? '';
-            $this->country = $data['country'] ?? '';
-            $this->tax_id = $data['tax_id'] ?? '';
-            $this->payment_terms = $data['payment_terms'] ?? 'Net 30';
-            $this->credit_limit = $data['credit_limit'] ?? '0';
-            $this->currency = $data['currency'] ?? 'USD';
-            $this->rating = is_numeric($data['rating'] ?? 0) ? (float)$data['rating'] : 0;
-            $this->category = $data['category'] ?? '';
-            $this->approved = !isset($data['approved']) || $data['approved'] == 1;
-            $this->notes = $data['notes'] ?? '';
-            $this->created_at = $data['created_at'] ?? date('Y-m-d H:i:s');
-        }
+        $this->id = $data['id'] ?? 0;
+        $this->vendor_no = $data['vendor_no'] ?? '';
+        $this->name = $data['name'] ?? '';
+        $this->contact = $data['contact'] ?? '';
+        $this->email = $data['email'] ?? '';
+        $this->phone = $data['phone'] ?? '';
+        $this->address = $data['address'] ?? '';
+        $this->city = $data['city'] ?? '';
+        $this->state = $data['state'] ?? '';
+        $this->postal_code = $data['postal_code'] ?? '';
+        $this->country = $data['country'] ?? '';
+        $this->tax_id = $data['tax_id'] ?? '';
+        $this->payment_terms = $data['payment_terms'] ?? 'Net 30';
+        $this->credit_limit = $data['credit_limit'] ?? '0';
+        $this->currency = $data['currency'] ?? 'USD';
+        $this->rating = is_numeric($data['rating'] ?? 0) ? (float)$data['rating'] : 0;
+        $this->category = $data['category'] ?? '';
+        $this->approved = !isset($data['approved']) || $data['approved'] == 1;
+        $this->notes = $data['notes'] ?? '';
+        $this->created_at = $data['created_at'] ?? date('Y-m-d H:i:s');
     }
 
     public function getPurchaseHistory(): array
