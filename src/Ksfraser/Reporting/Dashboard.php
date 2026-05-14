@@ -4,8 +4,26 @@ namespace Ksfraser\Reporting;
 
 class ReportingDashboard
 {
+    private static bool $initialized = false;
+    private static bool $faAvailable = false;
+
+    private static function initialize(): void
+    {
+        if (self::$initialized) {
+            return;
+        }
+        self::$initialized = true;
+        self::$faAvailable = function_exists('db_query') && defined('TB_PREF');
+        
+        if (self::$faAvailable) {
+            @include_once '../../../includes/db.inc';
+            self::$faAvailable = function_exists('db_query');
+        }
+    }
+
     public static function renderKPIs(): string
     {
+        self::initialize();
         ob_start();
         
         $kpis = [
@@ -22,7 +40,7 @@ class ReportingDashboard
         foreach ($kpis as $key => $value) {
             $label = str_replace('_', ' ', ucwords($key, '_'));
             echo '<div class="kpi-card">';
-            echo '<h4>' . $label . '</h4>';
+            echo '<h4>' . htmlspecialchars($label) . '</h4>';
             echo '<div class="kpi-value">' . number_format($value, 2) . '</div>';
             echo '</div>';
         }
@@ -34,25 +52,33 @@ class ReportingDashboard
 
     private static function getTotalRevenue(): float
     {
-        global $db;
-        include_once '../../../includes/db.inc';
+        self::initialize();
+        if (!self::$faAvailable) {
+            return 0.0;
+        }
 
         $sql = "SELECT SUM(total) as total FROM " . TB_PREF . "debtor_trans WHERE type = 10";
-        $result = db_query($sql);
+        $result = @db_query($sql);
+        if (!$result) {
+            return 0.0;
+        }
         $row = db_fetch_assoc($result);
-
         return (float)($row['total'] ?? 0);
     }
 
     private static function getTotalExpenses(): float
     {
-        global $db;
-        include_once '../../../includes/db.inc';
+        self::initialize();
+        if (!self::$faAvailable) {
+            return 0.0;
+        }
 
         $sql = "SELECT SUM(total) as total FROM " . TB_PREF . "supplier_trans WHERE type = 20";
-        $result = db_query($sql);
+        $result = @db_query($sql);
+        if (!$result) {
+            return 0.0;
+        }
         $row = db_fetch_assoc($result);
-
         return (float)($row['total'] ?? 0);
     }
 
@@ -63,44 +89,57 @@ class ReportingDashboard
 
     private static function getOutstandingInvoices(): float
     {
-        global $db;
-        include_once '../../../includes/db.inc';
+        self::initialize();
+        if (!self::$faAvailable) {
+            return 0.0;
+        }
 
         $sql = "SELECT SUM(due_value) as total FROM " . TB_PREF . "debtor_trans 
             WHERE type = 10 AND due_value > 0";
-        $result = db_query($sql);
+        $result = @db_query($sql);
+        if (!$result) {
+            return 0.0;
+        }
         $row = db_fetch_assoc($result);
-
         return (float)($row['total'] ?? 0);
     }
 
     private static function getOpenTickets(): int
     {
-        global $db;
-        include_once '../../../includes/db.inc';
+        self::initialize();
+        if (!self::$faAvailable) {
+            return 0;
+        }
 
         $sql = "SELECT COUNT(*) as cnt FROM " . TB_PREF . "fa_st_tickets 
             WHERE status != 'Closed'";
-        $result = db_query($sql);
+        $result = @db_query($sql);
+        if (!$result) {
+            return 0;
+        }
         $row = db_fetch_assoc($result);
-
         return (int)($row['cnt'] ?? 0);
     }
 
     private static function getActiveEmployees(): int
     {
-        global $db;
-        include_once '../../../includes/db.inc';
+        self::initialize();
+        if (!self::$faAvailable) {
+            return 0;
+        }
 
         $sql = "SELECT COUNT(*) as cnt FROM " . TB_PREF . "ksf_employees WHERE active = 1";
-        $result = db_query($sql);
+        $result = @db_query($sql);
+        if (!$result) {
+            return 0;
+        }
         $row = db_fetch_assoc($result);
-
         return (int)($row['cnt'] ?? 0);
     }
 
     public static function renderCharts(): string
     {
+        self::initialize();
         ob_start();
         
         echo '<div class="dashboard-charts">';
@@ -125,8 +164,10 @@ class ReportingDashboard
 
     private static function getRevenueByMonthChart(): string
     {
-        global $db;
-        include_once '../../../includes/db.inc';
+        self::initialize();
+        if (!self::$faAvailable) {
+            return '<script>var data = [];</script>';
+        }
 
         $sql = "SELECT MONTH(trans_date) as month, SUM(total) as revenue 
             FROM " . TB_PREF . "debtor_trans 
@@ -134,11 +175,15 @@ class ReportingDashboard
             GROUP BY MONTH(trans_date)
             ORDER BY month";
 
-        $result = db_query($sql);
+        $result = @db_query($sql);
+        if (!$result) {
+            return '<script>var data = [];</script>';
+        }
         
         $data = [];
         while ($row = db_fetch_assoc($result)) {
-            $data[] = "['" . date('M', mktime(0, 0, 0, $row['month'])) . "', " . $row['revenue'] . "]";
+            $monthName = date('M', mktime(0, 0, 0, (int)$row['month'], 1));
+            $data[] = "['" . $monthName . "', " . ((float)$row['revenue']) . "]";
         }
 
         return '<script>var data = [' . implode(',', $data) . '];</script>';
@@ -146,8 +191,10 @@ class ReportingDashboard
 
     private static function getTopCustomersChart(): string
     {
-        global $db;
-        include_once '../../../includes/db.inc';
+        self::initialize();
+        if (!self::$faAvailable) {
+            return '<script>var data = [];</script>';
+        }
 
         $sql = "SELECT dm.name, SUM(dt.total) as revenue 
             FROM " . TB_PREF . "debtor_trans dt
@@ -157,11 +204,15 @@ class ReportingDashboard
             ORDER BY revenue DESC
             LIMIT 5";
 
-        $result = db_query($sql);
+        $result = @db_query($sql);
+        if (!$result) {
+            return '<script>var data = [];</script>';
+        }
         
         $data = [];
         while ($row = db_fetch_assoc($result)) {
-            $data[] = "['" . substr($row['name'], 0, 20) . "', " . $row['revenue'] . "]";
+            $name = htmlspecialchars(substr($row['name'], 0, 20));
+            $data[] = "['" . $name . "', " . ((float)$row['revenue']) . "]";
         }
 
         return '<script>var data = [' . implode(',', $data) . '];</script>';
@@ -169,8 +220,10 @@ class ReportingDashboard
 
     public static function renderVendorScorecard(): string
     {
-        global $db;
-        include_once '../../../includes/db.inc';
+        self::initialize();
+        if (!self::$faAvailable) {
+            return '<table class="table"><thead><tr><th>Vendor</th><th>On-Time</th><th>Late</th><th>Quality %</th></tr></thead><tbody><tr><td colspan="4">No vendor data available</td></tr></tbody></table>';
+        }
 
         $sql = "SELECT sm.supp_name, vp.on_time_deliveries, vp.late_deliveries, vp.quality_score
             FROM " . TB_PREF . "suppliers_master sm
@@ -178,22 +231,24 @@ class ReportingDashboard
             ORDER BY vp.total_spend DESC
             LIMIT 10";
 
-        $result = db_query($sql);
+        $result = @db_query($sql);
         
         $html = '<table class="table"><thead><tr><th>Vendor</th><th>On-Time</th><th>Late</th><th>Quality %</th></tr></thead><tbody>';
         
-        while ($row = db_fetch_assoc($result)) {
-            $onTime = (int)($row['on_time_deliveries'] ?? 0);
-            $late = (int)($row['late_deliveries'] ?? 0);
-            $total = $onTime + $late;
-            $rate = $total > 0 ? round(($onTime / $total) * 100, 1) : 0;
-            
-            $html .= '<tr>';
-            $html .= '<td>' . $row['supp_name'] . '</td>';
-            $html .= '<td>' . $onTime . '</td>';
-            $html .= '<td>' . $late . '</td>';
-            $html .= '<td>' . $rate . '%</td>';
-            $html .= '</tr>';
+        if ($result) {
+            while ($row = db_fetch_assoc($result)) {
+                $onTime = (int)($row['on_time_deliveries'] ?? 0);
+                $late = (int)($row['late_deliveries'] ?? 0);
+                $total = $onTime + $late;
+                $rate = $total > 0 ? round(($onTime / $total) * 100, 1) : 0;
+                
+                $html .= '<tr>';
+                $html .= '<td>' . htmlspecialchars($row['supp_name'] ?? 'Unknown') . '</td>';
+                $html .= '<td>' . $onTime . '</td>';
+                $html .= '<td>' . $late . '</td>';
+                $html .= '<td>' . $rate . '%</td>';
+                $html .= '</tr>';
+            }
         }
         
         $html .= '</tbody></table>';
@@ -214,8 +269,11 @@ class ReportingDashboard
             return false;
         }
 
-        $filename = $type . '_' . date('Ymd') . '.' . $format;
+        if (!class_exists('\Ksfraser\DataIO\ExportService')) {
+            return false;
+        }
 
+        $filename = $type . '_' . date('Ymd') . '.' . $format;
         return (new \Ksfraser\DataIO\ExportService())->toCsv($data, $filename);
     }
 }

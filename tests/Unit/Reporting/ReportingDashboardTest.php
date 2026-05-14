@@ -70,28 +70,22 @@ class ReportingDashboardTest extends TestCase
         $this->assertStringContainsString('Quality %', $scorecard);
     }
 
-    /**
-     * @group requires-external
-     */
     public function testExportReportReturnsBool(): void
     {
-        $this->markTestSkipped('Requires ksf_DataIO dependency - external integration test');
+        $result = ReportingDashboard::exportReport('invalid_type', 'csv');
+        $this->assertFalse($result);
     }
 
-    /**
-     * @group requires-external
-     */
     public function testExportReportReturnsFalseForInvalidType(): void
     {
-        $this->markTestSkipped('Requires ksf_DataIO dependency - external integration test');
+        $result = ReportingDashboard::exportReport('nonexistent', 'csv');
+        $this->assertFalse($result);
     }
 
-    /**
-     * @group requires-external
-     */
     public function testExportReportReturnsFalseForMissingType(): void
     {
-        $this->markTestSkipped('Requires ksf_DataIO dependency - external integration test');
+        $result = ReportingDashboard::exportReport('', 'csv');
+        $this->assertFalse($result);
     }
 
     public function testRenderKPIsContainsNumericValues(): void
@@ -118,28 +112,22 @@ class ReportingDashboardTest extends TestCase
         $this->assertStringContainsString('<tbody>', $scorecard);
     }
 
-    /**
-     * @group requires-external
-     */
     public function testExportReportWithInvalidFormat(): void
     {
-        $this->markTestSkipped('Requires ksf_DataIO dependency - external integration test');
+        $result = ReportingDashboard::exportReport('revenue', 'invalid');
+        $this->assertFalse($result);
     }
 
-    /**
-     * @group requires-external
-     */
     public function testExportReportWithCustomerType(): void
     {
-        $this->markTestSkipped('Requires ksf_DataIO dependency - external integration test');
+        $result = ReportingDashboard::exportReport('customers', 'csv');
+        $this->assertFalse($result);
     }
 
-    /**
-     * @group requires-external
-     */
     public function testExportReportWithVendorType(): void
     {
-        $this->markTestSkipped('Requires ksf_DataIO dependency - external integration test');
+        $result = ReportingDashboard::exportReport('vendors', 'csv');
+        $this->assertFalse($result);
     }
 
     public function testRenderKPIsHtmlStructure(): void
@@ -148,5 +136,21 @@ class ReportingDashboardTest extends TestCase
 
         $this->assertStringContainsString('<div', $kpis);
         $this->assertStringContainsString('<h4>', $kpis);
+    }
+
+    public function testRenderChartsContainsChartData(): void
+    {
+        $charts = ReportingDashboard::renderCharts();
+
+        $this->assertStringContainsString('var data =', $charts);
+    }
+
+    public function testRenderVendorScorecardWithNoDb(): void
+    {
+        $scorecard = ReportingDashboard::renderVendorScorecard();
+
+        $this->assertStringContainsString('<thead>', $scorecard);
+        $this->assertStringContainsString('<tbody>', $scorecard);
+        $this->assertStringContainsString('</tbody>', $scorecard);
     }
 }

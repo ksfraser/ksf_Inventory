@@ -4,6 +4,19 @@ namespace Ksfraser\Vendor;
 
 class VendorManagement
 {
+    private static bool $faAvailable = false;
+
+    private static function checkFaAvailable(): bool
+    {
+        if (self::$faAvailable) {
+            return true;
+        }
+        self::$faAvailable = function_exists('db_query') && defined('TB_PREF');
+        @include_once '../../../includes/db.inc';
+        self::$faAvailable = self::$faAvailable && function_exists('db_query');
+        return self::$faAvailable;
+    }
+
     public int $id;
     public string $vendor_no;
     public string $name;
@@ -42,7 +55,8 @@ class VendorManagement
         $this->payment_terms = $data['payment_terms'] ?? 'Net 30';
         $this->credit_limit = $data['credit_limit'] ?? '0';
         $this->currency = $data['currency'] ?? 'USD';
-        $this->rating = is_numeric($data['rating'] ?? 0) ? (float)$data['rating'] : 0;
+        $rating = $data['rating'] ?? 0;
+        $this->rating = is_numeric($rating) ? (float)$rating : 0;
         $this->category = $data['category'] ?? '';
         $this->approved = !isset($data['approved']) || $data['approved'] == 1;
         $this->notes = $data['notes'] ?? '';
@@ -51,8 +65,9 @@ class VendorManagement
 
     public function getPurchaseHistory(): array
     {
-        global $db;
-        include_once '../../../includes/db.inc';
+        if (!self::checkFaAvailable()) {
+            return [];
+        }
 
         $sql = "SELECT po.*, po.order_date as date 
             FROM " . TB_PREF . "purchase_orders po
@@ -60,112 +75,142 @@ class VendorManagement
             ORDER BY po.order_date DESC
             LIMIT 20";
 
-        $result = db_query($sql);
-        $orders = [];
-
-        while ($row = db_fetch_assoc($result)) {
-            $orders[] = $row;
+        $result = @db_query($sql);
+        if (!$result) {
+            return [];
         }
 
+        $orders = [];
+        while ($row = @db_fetch_assoc($result)) {
+            $orders[] = $row;
+        }
         return $orders;
     }
 
     public function getTotalSpend(): float
     {
-        global $db;
-        include_once '../../../includes/db.inc';
+        if (!self::checkFaAvailable()) {
+            return 0.0;
+        }
 
         $sql = "SELECT SUM(total) as total 
             FROM " . TB_PREF . "purchase_orders 
             WHERE vendor = " . db_escape($this->vendor_no) . "
             AND status = 'Completed'";
 
-        $result = db_query($sql);
-        $row = db_fetch_assoc($result);
-
+        $result = @db_query($sql);
+        if (!$result) {
+            return 0.0;
+        }
+        $row = @db_fetch_assoc($result);
         return (float)($row['total'] ?? 0);
     }
 
     public static function find(string $vendor_no): ?self
     {
-        global $db;
-        include_once '../../../includes/db.inc';
+        if (!self::checkFaAvailable()) {
+            return null;
+        }
 
         $sql = "SELECT * FROM " . TB_PREF . "suppliers_master 
             WHERE supplier_id = " . db_escape($vendor_no);
 
-        $result = db_query($sql);
-        $row = db_fetch_assoc($result);
-
+        $result = @db_query($sql);
+        if (!$result) {
+            return null;
+        }
+        $row = @db_fetch_assoc($result);
         return $row ? new self($row) : null;
     }
 
     public static function search(string $query, int $limit = 20): array
     {
-        global $db;
-        include_once '../../../includes/db.inc';
+        if (!self::checkFaAvailable()) {
+            return [];
+        }
 
         $sql = "SELECT * FROM " . TB_PREF . "suppliers_master 
             WHERE supplier_id LIKE " . db_escape('%' . $query . '%') . "
             OR supp_name LIKE " . db_escape('%' . $query . '%') . "
             OR email LIKE " . db_escape('%' . $query . '%') . "
             ORDER BY supp_name
-            LIMIT " . db_escape($limit);
+            LIMIT " . (int)$limit;
 
-        $result = db_query($sql);
-        $vendors = [];
-
-        while ($row = db_fetch_assoc($result)) {
-            $vendors[] = new self($row);
+        $result = @db_query($sql);
+        if (!$result) {
+            return [];
         }
 
+        $vendors = [];
+        while ($row = @db_fetch_assoc($result)) {
+            $vendors[] = new self($row);
+        }
         return $vendors;
     }
 
     public static function getTopVendors(int $limit = 10): array
     {
-        global $db;
-        include_once '../../../includes/db.inc';
+        if (!self::checkFaAvailable()) {
+            return [];
+        }
 
         $sql = "SELECT sm.*, SUM(po.total) as total_spend
             FROM " . TB_PREF . "suppliers_master sm
             LEFT JOIN " . TB_PREF . "purchase_orders po ON sm.supplier_id = po.vendor
             GROUP BY sm.supplier_id
             ORDER BY total_spend DESC
-            LIMIT " . db_escape($limit);
+            LIMIT " . (int)$limit;
 
-        $result = db_query($sql);
-        $vendors = [];
-
-        while ($row = db_fetch_assoc($result)) {
-            $vendors[] = new self($row);
+        $result = @db_query($sql);
+        if (!$result) {
+            return [];
         }
 
+        $vendors = [];
+        while ($row = @db_fetch_assoc($result)) {
+            $vendors[] = new self($row);
+        }
         return $vendors;
     }
 
     public static function getByCategory(string $category): array
     {
-        global $db;
-        include_once '../../../includes/db.inc';
+        if (!self::checkFaAvailable()) {
+            return [];
+        }
 
         $sql = "SELECT * FROM " . TB_PREF . "suppliers_master 
             WHERE category = " . db_escape($category) . "
             ORDER BY supp_name";
 
-        $result = db_query($sql);
-        $vendors = [];
-
-        while ($row = db_fetch_assoc($result)) {
-            $vendors[] = new self($row);
+        $result = @db_query($sql);
+        if (!$result) {
+            return [];
         }
 
+        $vendors = [];
+        while ($row = @db_fetch_assoc($result)) {
+            $vendors[] = new self($row);
+        }
         return $vendors;
     }
 }
 
 class VendorPerformance
 {
+    private static bool $faAvailable = false;
+
+    private static function checkFaAvailable(): bool
+    {
+        if (self::$faAvailable) {
+            return true;
+        }
+        self::$faAvailable = function_exists('db_query') && defined('TB_PREF');
+        @include_once '../../../includes/db.inc';
+        self::$faAvailable = self::$faAvailable && function_exists('db_query');
+        return self::$faAvailable;
+    }
+
     public string $vendor_no;
     public int $order_count;
     public float $total_spend;
@@ -178,13 +223,21 @@ class VendorPerformance
     public function __construct(string $vendor_no)
     {
         $this->vendor_no = $vendor_no;
+        $this->order_count = 0;
+        $this->total_spend = 0.0;
+        $this->avg_order_value = 0.0;
+        $this->on_time_deliveries = 0;
+        $this->late_deliveries = 0;
+        $this->damage_claims = 0;
+        $this->quality_score = 0.0;
         $this->calculateMetrics();
     }
 
-    private function calculateMetrics()
+    private function calculateMetrics(): void
     {
-        global $db;
-        include_once '../../../includes/db.inc';
+        if (!self::checkFaAvailable()) {
+            return;
+        }
 
         $sql = "SELECT 
             COUNT(*) as order_count,
@@ -196,8 +249,11 @@ class VendorPerformance
             FROM " . TB_PREF . "purchase_orders 
             WHERE vendor = " . db_escape($this->vendor_no);
 
-        $result = db_query($sql);
-        $row = db_fetch_assoc($result);
+        $result = @db_query($sql);
+        if (!$result) {
+            return;
+        }
+        $row = @db_fetch_assoc($result);
 
         $this->order_count = (int)($row['order_count'] ?? 0);
         $this->total_spend = (float)($row['total_spend'] ?? 0);
